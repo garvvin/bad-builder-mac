@@ -10,8 +10,6 @@ BadBuilder automates formatting a USB drive, downloading the exploit payload and
 
 This is a macOS port of [Pdawg-bytes/BadBuilder](https://github.com/Pdawg-bytes/BadBuilder), rewritten in .NET 10 with native macOS disk detection and formatting (no Windows dependencies).
 
-⭐ If you find this useful, star it on GitHub!
-
 [Requirements](#requirements) • [Quick Start](#quick-start) • [How to Use](#how-to-use) • [Technical Overview](#technical-overview) • [CI/CD & Security](#cicd--security) • [Credits](#credits)
 
 ## Features
@@ -65,8 +63,8 @@ dotnet publish --configuration Release -r osx-arm64 -o publish
 2. **Select a disk.** BadBuilder lists detected external USB drives.
 3. **Confirm formatting.** All data on the selected drive will be erased.
 
-   > [!CAUTION]
-   > Make sure you have selected the right drive before confirming. The author is not responsible for any data loss.
+> [!CAUTION]
+> Make sure you have selected the right drive before confirming. The author is not responsible for any data loss.
 
 4. **Download files.** BadBuilder fetches the required exploit files from GitHub or lets you point to local copies.
 5. **Extract files.** Archives are extracted automatically with progress feedback.
