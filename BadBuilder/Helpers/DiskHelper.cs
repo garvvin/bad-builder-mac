@@ -48,16 +48,27 @@ namespace BadBuilder.Helpers
                 };
 
                 process.Start();
-                process.WaitForExit(120000);
+                string stdout = process.StandardOutput.ReadToEnd();
+                string stderr = process.StandardError.ReadToEnd();
+
+                if (!process.WaitForExit(120000))
+                {
+                    process.Kill(entireProcessTree: true);
+                    return "\u001b[38;2;255;114;0m[-]\u001b[0m Format timed out. Please try again or format manually.";
+                }
 
                 if (process.ExitCode == 0)
                     return string.Empty;
 
-                string error = process.StandardError.ReadToEnd().Trim();
+                string error = stderr.Trim();
                 if (string.IsNullOrEmpty(error))
-                    error = process.StandardOutput.ReadToEnd().Trim();
+                    error = stdout.Trim();
 
                 return $"\u001b[38;2;255;114;0m[-]\u001b[0m Format failed: {error}";
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                return "\u001b[38;2;255;114;0m[-]\u001b[0m diskutil is not available on this system. Please format manually.";
             }
             catch (Exception ex)
             {

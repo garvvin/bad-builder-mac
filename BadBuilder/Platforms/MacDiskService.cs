@@ -70,7 +70,13 @@ namespace BadBuilder.Platforms
             try
             {
                 var driveInfo = new DriveInfo(mountPoint);
-                return driveInfo.DriveFormat.Equals("msdos", StringComparison.OrdinalIgnoreCase);
+                if (!driveInfo.DriveFormat.Equals("msdos", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                if (!string.IsNullOrEmpty(driveInfo.VolumeLabel))
+                    return driveInfo.VolumeLabel.Equals("BADUPDATE", StringComparison.OrdinalIgnoreCase);
+
+                return true;
             }
             catch
             {
@@ -164,8 +170,8 @@ namespace BadBuilder.Platforms
                                     }
                                 }
 
-                                if (mountPoint != null && wholeDiskId != null)
-                                    map[mountPoint] = wholeDiskId;
+                    if (mountPoint != null && wholeDiskId != null)
+                        map[mountPoint.TrimEnd('/')] = wholeDiskId;
                             }
                         }
                     }
