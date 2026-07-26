@@ -21,11 +21,11 @@ namespace BadBuilder
         static readonly Style GreenStyle = new(new Color(118, 185, 0));
         static readonly Style GrayStyle = new(new Color(132, 133, 137));
 
-        static string TargetDriveLetter = string.Empty;
+        static string TargetMountPoint = string.Empty;
 
         static ActionQueue actionQueue = new();
 
-        static DiskInfo targetDisk = new("/mnt/usb", "Fixed", 0, "", 0, int.MaxValue);
+        static DiskInfo targetDisk = new("/mnt/usb", "Fixed", 0);
 
         static void Main(string[] args)
         {
@@ -40,9 +40,9 @@ namespace BadBuilder
 
                 List<DiskInfo> disks = DiskHelper.GetDisks();
                 string selectedDisk = PromptDiskSelection(disks);
-                TargetDriveLetter = ExtractRootPath(selectedDisk);
+                TargetMountPoint = ExtractRootPath(selectedDisk);
 
-                int diskIndex = disks.FindIndex(disk => $"{disk.DriveLetter} ({disk.SizeFormatted}) - {disk.Type}" == selectedDisk);
+                int diskIndex = disks.FindIndex(disk => $"{disk.MountPoint} ({disk.SizeFormatted}) - {disk.Type}" == selectedDisk);
                 targetDisk = disks[diskIndex];
 
                 bool confirmation = PromptFormatConfirmation(selectedDisk);
@@ -62,19 +62,9 @@ namespace BadBuilder
                         );
                         if (!manualFormatDone) continue;
 
-                        try
+                        if (!DiskHelper.ValidateDiskFormat(targetDisk.MountPoint))
                         {
-                            string driveFormat = new DriveInfo(targetDisk.DriveLetter).DriveFormat;
-                            string volumeLabel = new DriveInfo(targetDisk.DriveLetter).VolumeLabel;
-                            if (!driveFormat.Equals("FAT32", StringComparison.OrdinalIgnoreCase) || !volumeLabel.Equals("BADUPDATE", StringComparison.OrdinalIgnoreCase))
-                            {
-                                Console.WriteLine($"\n[!] Drive verification failed: expected FAT32/BADUPDATE, got {driveFormat}/{volumeLabel}. Please format the drive correctly.");
-                                continue;
-                            }
-                        }
-                        catch (Exception)
-                        {
-                            Console.WriteLine("\n[!] Could not verify the drive. Ensure it's mounted and formatted as FAT32 with label BADUPDATE.");
+                            Console.WriteLine("\n[!] Drive verification failed. Ensure it's formatted as FAT32 with label BADUPDATE.");
                             continue;
                         }
                     }
@@ -104,7 +94,7 @@ namespace BadBuilder
                     case "XeXmenu":
                         EnqueueMirrorDirectory(
                             Path.Combine(folder, $"{ContentFolder}C0DE9999"),
-                            Path.Combine(TargetDriveLetter, $"{ContentFolder}C0DE9999"),
+                            Path.Combine(TargetMountPoint, $"{ContentFolder}C0DE9999"),
                             7
                         );
                         break;
@@ -113,7 +103,7 @@ namespace BadBuilder
                         if (selectedDefaultApp != "FreeMyXe") break;
                         EnqueueFileCopy(
                             Path.Combine(folder, "FreeMyXe.xex"),
-                            Path.Combine(TargetDriveLetter, "BadUpdatePayload", "default.xex"),
+                            Path.Combine(TargetMountPoint, "BadUpdatePayload", "default.xex"),
                             9
                         );
                         break;
@@ -124,7 +114,7 @@ namespace BadBuilder
                         File.Delete(Path.Combine(subFolderPath, "README - IMPORTANT.txt"));
                         EnqueueMirrorDirectory(
                             subFolderPath,
-                            TargetDriveLetter,
+                            TargetMountPoint,
                             9
                         );
                         break;
@@ -132,14 +122,14 @@ namespace BadBuilder
                     case "BadUpdate":
                         actionQueue.EnqueueAction(async () =>
                         {
-                            using (StreamWriter writer = new(Path.Combine(TargetDriveLetter, "name.txt")))
+                            using (StreamWriter writer = new(Path.Combine(TargetMountPoint, "name.txt")))
                                 writer.WriteLine("USB Storage Device");
 
-                            using (StreamWriter writer = new(Path.Combine(TargetDriveLetter, "info.txt")))
+                            using (StreamWriter writer = new(Path.Combine(TargetMountPoint, "info.txt")))
                                 writer.WriteLine($"This drive was created with BadBuilder by Pdawg.\nFind more info here: https://github.com/Pdawg-bytes/BadBuilder\nConfiguration: \n-  BadUpdate target binary: {selectedDefaultApp}");
 
-                            Directory.CreateDirectory(Path.Combine(TargetDriveLetter, "Apps"));
-                            await FileSystemHelper.MirrorDirectoryAsync(Path.Combine(folder, "Rock Band Blitz"), TargetDriveLetter);
+                            Directory.CreateDirectory(Path.Combine(TargetMountPoint, "Apps"));
+                            await FileSystemHelper.MirrorDirectoryAsync(Path.Combine(folder, "Rock Band Blitz"), TargetMountPoint);
                         }, 10);
                         break;
 
@@ -149,7 +139,7 @@ namespace BadBuilder
                     case "Rock Band Blitz":
                         EnqueueMirrorDirectory(
                             Path.Combine(folder, $"{ContentFolder}5841122D/000D0000"),
-                            Path.Combine(TargetDriveLetter, $"{ContentFolder}5841122D/000D0000"),
+                            Path.Combine(TargetMountPoint, $"{ContentFolder}5841122D/000D0000"),
                             8
                         );
                         break;
@@ -158,7 +148,7 @@ namespace BadBuilder
                         actionQueue.EnqueueAction(async () =>
                         {
                             await PatchHelper.PatchXexAsync(Path.Combine(folder, "Simple 360 NAND Flasher", "Default.xex"));
-                            await FileSystemHelper.MirrorDirectoryAsync(Path.Combine(folder, "Simple 360 NAND Flasher"), Path.Combine(TargetDriveLetter, "Apps", "Simple 360 NAND Flasher"));
+                            await FileSystemHelper.MirrorDirectoryAsync(Path.Combine(folder, "Simple 360 NAND Flasher"), Path.Combine(TargetMountPoint, "Apps", "Simple 360 NAND Flasher"));
                         }, 6);
                         break;
 
@@ -169,13 +159,13 @@ namespace BadBuilder
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), $"-  Disk formatted using {(targetDisk.TotalSize < 31 * GB ? "Windows \"format.com\"" : "BadBuilder Large FAT32 formatter")}\n");
-                File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), $"-  Disk total size: {targetDisk.TotalSize} bytes\n");
+                File.AppendAllText(Path.Combine(TargetMountPoint, "info.txt"), $"-  Disk formatted using {(targetDisk.TotalSize < 31 * GB ? "Windows \"format.com\"" : "BadBuilder Large FAT32 formatter")}\n");
+                File.AppendAllText(Path.Combine(TargetMountPoint, "info.txt"), $"-  Disk total size: {targetDisk.TotalSize} bytes\n");
             }
             else
             {
-                File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), "-  Disk formatted manually by user (non-Windows platform)\n");
-                File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), $"-  Disk total size: {targetDisk.TotalSize} bytes\n");
+                File.AppendAllText(Path.Combine(TargetMountPoint, "info.txt"), "-  Disk formatted manually by user (non-Windows platform)\n");
+                File.AppendAllText(Path.Combine(TargetMountPoint, "info.txt"), $"-  Disk total size: {targetDisk.TotalSize} bytes\n");
             }
 
             ClearConsole();
@@ -198,7 +188,7 @@ namespace BadBuilder
                 {
                     await Task.WhenAll(homebrewApps.Select(async item =>
                     {
-                        await FileSystemHelper.MirrorDirectoryAsync(item.folder, Path.Combine(TargetDriveLetter, "Apps", item.name));
+                        await FileSystemHelper.MirrorDirectoryAsync(item.folder, Path.Combine(TargetMountPoint, "Apps", item.name));
                         await PatchHelper.PatchXexAsync(item.entryPoint);
                     }));
                 }).Wait();
@@ -232,7 +222,7 @@ namespace BadBuilder
 
         static void WriteHomebrewLog(int count)
         {
-            string logPath = Path.Combine(TargetDriveLetter, "info.txt");
+            string logPath = Path.Combine(TargetMountPoint, "info.txt");
             string logEntry = $"-  {count} homebrew app(s) added (including Simple 360 NAND Flasher)\n";
             File.AppendAllText(logPath, logEntry);
         }

@@ -10,7 +10,7 @@ namespace BadBuilder
         {
             var choices = new List<string>();
             foreach (var disk in disks)
-                choices.Add($"{disk.DriveLetter} ({disk.SizeFormatted}) - {disk.Type}");
+                choices.Add($"{disk.MountPoint} ({disk.SizeFormatted}) - {disk.Type}");
 
             return AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
@@ -22,8 +22,12 @@ namespace BadBuilder
 
         static bool PromptFormatConfirmation(string selectedDisk)
         {
+            string diskName = selectedDisk.Contains(" (") 
+                ? selectedDisk.Substring(0, selectedDisk.IndexOf(" ("))
+                : selectedDisk;
+
             return AnsiConsole.Prompt(
-                new TextPrompt<bool>($"[#FF7200 bold]WARNING: [/]Are you sure you would like to format [bold]{selectedDisk.Substring(0, 3)}[/]? All data on this drive will be lost.")
+                new TextPrompt<bool>($"[#FF7200 bold]WARNING: [/]Are you sure you would like to format [bold]{diskName}[/]? All data on this drive will be lost.")
                     .AddChoice(true)
                     .AddChoice(false)
                     .DefaultValue(false)
@@ -38,9 +42,8 @@ namespace BadBuilder
             bool ret = true;
             string output = string.Empty;
 
-            AnsiConsole.Status().SpinnerStyle(LightOrangeStyle).Start($"[#76B900]Formatting disk[/] {disk.DriveLetter} ({disk.SizeFormatted}) - {disk.Type}", async ctx =>
+            AnsiConsole.Status().SpinnerStyle(LightOrangeStyle).Start($"[#76B900]Formatting disk[/] {disk.MountPoint} ({disk.SizeFormatted}) - {disk.Type}", async ctx =>
             {
-                ClearConsole();
                 output = DiskHelper.FormatDisk(disk);
                 if (output != string.Empty) ret = false;
             });

@@ -2,25 +2,17 @@
 {
     internal class DiskInfo
     {
-        internal string DriveLetter { get; init; }
-        internal string VolumeLabel { get; init; }
-        internal int DiskNumber { get; init; }
-
+        internal string MountPoint { get; init; }
         internal string Type { get; init; }
         internal string SizeFormatted { get; init; }
         internal long TotalSize { get; init; }
-        internal long AvailableFreeSpace { get; init; }
 
-        internal DiskInfo(string driveLetter, string type, long totalSize, string volumeLabel, long availableFreeSpace, int diskNumber)
+        internal DiskInfo(string mountPoint, string type, long totalSize)
         {
-            DriveLetter = driveLetter;
-            VolumeLabel = volumeLabel;
-            DiskNumber = diskNumber;
-
+            MountPoint = mountPoint;
             Type = type;
-            SizeFormatted = FormatSize(totalSize);
             TotalSize = totalSize;
-            AvailableFreeSpace = availableFreeSpace;
+            SizeFormatted = FormatSize(totalSize);
         }
 
         private static string FormatSize(long bytes)
