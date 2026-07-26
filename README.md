@@ -1,56 +1,85 @@
 # BadBuilder
-BadBuilder is a tool for creating a BadUpdate USB drive for the Xbox 360. It automates the process of formatting the USB drive, downloading required files, extracting them, and allowing the addition of homebrew applications.
+
+[![CI](https://github.com/garvvin/bad-builder-mac/actions/workflows/ci.yml/badge.svg)](https://github.com/garvvin/bad-builder-mac/actions/workflows/ci.yml)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue)](LICENSE)
+
+> macOS-native tool for building an Xbox 360 BadUpdate exploit USB drive — with cross-platform XEX patching and homebrew support.
+
+BadBuilder automates formatting a USB drive, downloading the exploit payload and homebrew files, extracting archives, and laying out the directory structure required by the [BadUpdate](https://github.com/grimdoomer/Xbox360BadUpdate) hypervisor exploit — all through an interactive terminal UI.
+
+This is a macOS port of [Pdawg-bytes/BadBuilder](https://github.com/Pdawg-bytes/BadBuilder), rewritten in .NET 10 with native macOS disk detection and formatting (no Windows dependencies).
+
+⭐ If you find this useful, star it on GitHub!
+
+[Requirements](#requirements) • [Quick Start](#quick-start) • [How to Use](#how-to-use) • [Technical Overview](#technical-overview) • [CI/CD & Security](#cicd--security) • [Credits](#credits)
 
 ## Features
-### USB Formatting (Windows Only)
-- Uses a custom FAT32 formatter that supports large USB drives (≥32GB).
-- Ensures compatibility with the Xbox 360.
 
-> [!NOTE]  
-> Currently, the formatting feature is **Windows-only**. If you compile BadBuilder for another OS, it'll prompt you to manually format your target disk. **__Please format the drive BEFORE using BadBuilder, via Rufus, etc.__**
+### USB Formatting
+- FAT32 + MBR formatting via macOS `diskutil` — no `sudo` required
+- Only external drives are detected and listed; system drives are excluded
+- Bypassable format step if drive is already prepared
 
-### Automatic File Downloading
-- Detects and downloads the latest required files automatically.
-- Recognizes previously downloaded files and reuses them by default.
-- Allows specifying custom paths for required files if they are already on your system.
-> [!IMPORTANT]  
-> BadBuilder does not dynamically locate files inside ZIP archives. If your provided archive has a different folder structure than expected, the process will fail abruptly. Ensure your archive matches the expected format if specifying an existing copy.
+### File Management
+- Fetches the latest release assets from GitHub (BadUpdate, FreeMyXe, XeUnshackle) via Octokit
+- Downloads XeXmenu, Rock Band Blitz game data, and Simple 360 NAND Flasher from fixed mirrors
+- Detects previously downloaded files and reuses them — skip re-downloads or supply local paths
+- Parallel downloads and extractions with progress bars, ETA, and transfer speed
 
-### File Extraction & Copying
-- Extracts all necessary files automatically.
-- Prepares the USB drive for the BadUpdate exploit by copying all required files.
-### Homebrew Support
-- Allows adding homebrew applications by specifying their root folder.
-- Prompts for the path of the entry point if it could not be automatically determined.
-- Automatically searches for the entry point (`.xex`) file within the folder.
-- If multiple `.xex` files are found, BadBuilder will prompt you to select the correct one.
-- Copies all necessary files and patches the entry `.xex` using the downloaded XexTool.
+### Exploit & Homebrew
+- Copies files in priority order via a priority queue — exploit payload always lands last
+- Patches Xbox 360 XEX executables in pure C# (removes region locks, media restrictions, and retail signing; repairs SHA1 header hash)
+- Picks between FreeMyXe or XeUnshackle as the default app launched by BadUpdate
+- Adds homebrew apps with automatic `.xex` entry-point detection and in-place patching
+
+> [!IMPORTANT]
+> BadBuilder expects archives to match the expected folder structure. If your provided archive has a different layout, extraction or copying may fail.
+
+## Requirements
+
+- **macOS** 11+ (Apple Silicon or Intel)
+- **.NET 10.0 SDK** (for building from source)
+- A USB drive (any size — formatting is automatic)
+
+## Quick Start
+
+### Download (pre-built)
+
+Download the latest binary from [Releases](https://github.com/garvvin/bad-builder-mac/releases).
+
+### Build from source
+
+```bash
+git clone https://github.com/garvvin/bad-builder-mac.git
+cd bad-builder-mac
+dotnet publish --configuration Release -r osx-arm64 -o publish
+```
+
+> [!TIP]
+> On an Intel Mac, use `-r osx-x64` instead of `-r osx-arm64`.
 
 ## How to Use
-1. **Launch the executable**. It will open inside of a Terminal window.
-2. **Formatting (Windows Only):** BadBuilder will format your USB drive as FAT32, even if it’s larger than 32GB.
-> [!CAUTION]
-> Formatting a disk means that all data will be lost. Make sure you have selected the right drive before confirming the format. I am not responsible for any data loss.
-3. **Download Files:** BadBuilder will fetch the required exploit files or let you specify an existing location.
-4. **Extract Files:** BadBuilder will automatically extract everything needed.
-5. **Select default program**: BadBuilder will prompt you to choose a program that BadUpdate will try and invoke, being either [FreeMyXe](https://github.com/FreeMyXe/FreeMyXe), or [XeUnshackle](https://github.com/Byrom90/XeUnshackle)
-6. **Copy Files:** BadBuilder will copy all of the extracted files to the correct locations.
-7. **Add Homebrew (Optional):**
-    - Specify the root folder of your homebrew application (e.g., `D:\Aurora 0.7b.2 - Release Package`).
-    - If no `.xex` files were located in the root folder, BadBuilder will prompt you for the path of the entry point.
-    - BadBuilder will locate the `.xex` file inside.
-    - If multiple `.xex` files exist, you’ll be prompted to choose the correct entry point.
-    - First, all necessary files will be copied, then, the `.xex` file will be patched using **XexTool**.
-        - This ensures that the original copy of the homebrew program will **not** be modified, as it is instead done in-place on the USB drive.
 
-## Example Homebrew Folder Structure
-If you want to add Aurora, you would select the **root folder**, like:
+1. **Launch the executable.** A Terminal window opens with the welcome banner.
+2. **Select a disk.** BadBuilder lists detected external USB drives.
+3. **Confirm formatting.** All data on the selected drive will be erased.
 
-```
-D:\Aurora 0.7b.2 - Release Package
-```
+   > [!CAUTION]
+   > Make sure you have selected the right drive before confirming. The author is not responsible for any data loss.
 
-Which contains:
+4. **Download files.** BadBuilder fetches the required exploit files from GitHub or lets you point to local copies.
+5. **Extract files.** Archives are extracted automatically with progress feedback.
+6. **Select a default program.** Choose between [FreeMyXe](https://github.com/FreeMyXe/FreeMyXe) or [XeUnshackle](https://github.com/Byrom90/XeUnshackle).
+7. **Copy files.** The priority queue writes everything to the correct locations on the USB drive.
+8. **Add homebrew (optional):**
+   - Provide the root folder of your homebrew application
+   - BadBuilder detects the `.xex` entry point automatically
+   - Files are mirrored to the USB drive and the XEX is patched in place
+
+### Example Homebrew Folder
+
+To add Aurora, select the **root folder**:
 
 ```
 Aurora 0.7b.2 - Release Package/
@@ -61,19 +90,64 @@ Aurora 0.7b.2 - Release Package/
 ├── User/
 ├── Aurora.xex
 ├── live.json
-├── nxeart
+└── nxeart
 ```
-BadBuilder will detect `Aurora.xex` as the entry point and patch it accordingly.
 
-> [!IMPORTANT]  
-> Homebrew apps which do not contain the entry point in the root folder will require you to manually enter the path of the entry point.
+BadBuilder detects `Aurora.xex` as the entry point and patches it.
 
-## Reporting Issues
-If you encounter any problems, please create a new issue with details about your setup and the problem.
+> [!IMPORTANT]
+> Homebrew apps without an entry point in the root folder require manually entering the path.
 
-### Credits
-- **Grimdoomer:** [BadUpdate](https://github.com/grimdoomer/Xbox360BadUpdate)
-- **InvoxiPlayGames:** [FreeMyXe](https://github.com/FreeMyXe/FreeMyXe)
-- **Byrom90:** [XeUnshackle](https://github.com/Byrom90/XeUnshackle)
-- **Swizzy:** [Simple 360 NAND Flasher](https://github.com/Swizzy/XDK_Projects)
-- **Team XeDEV:** XeXMenu
+## Technical Overview
+
+### Tech Stack
+
+| Component | Library | Version |
+|---|---|---|
+| Runtime | .NET | 10.0 |
+| Terminal UI | Spectre.Console | 0.57.2 |
+| GitHub API | Octokit | 14.0.0 |
+| Archive extraction | SharpCompress | 1.0.0 |
+
+### Architecture
+
+- **ConsoleExperience partial classes** — `DiskExperience`, `DownloadExperience`, `ExtractExperience`, and `HomebrewExperience` split the wizard flow across four files, all part of `partial class Program`
+- **Platform abstraction** — `IPlatformDiskService` with a macOS implementation that uses `statfs` P/Invoke (`libSystem.dylib`) to check the `MNT_REMOVABLE` flag, and parses `diskutil list -plist external` XML for device identifiers
+- **Priority queue** — `ActionQueue` (`SortedDictionary<int, Queue<Func<Task>>>`) enqueues file-copy operations by priority; exploit files run at priority 10 (last), ensuring the USB layout matches what BadUpdate expects
+- **Static helpers** — `DownloadHelper` (Octokit + HTTP), `ArchiveHelper` (SharpCompress), `PatchHelper` (XEX patching), `FileSystemHelper` (directory mirroring), `DiskHelper` (formatting facade)
+
+> [!NOTE]
+> A `WindowsDiskService` fallback exists for non-macOS platforms, but FAT32 validation is broken on Linux where the filesystem is reported as `vfat`.
+
+### XEX Patching
+
+BadBuilder replaces the old Windows-only `XexTool.exe` dependency with **cross-platform C# byte-level patching**. The `PatchHelper`:
+
+1. Validates the XEX2 magic number (`0x58455832`)
+2. Sets image flags to `0xFFFFFFFF` at the security-info offset (disables region and media restrictions)
+3. Clears the retail-signing bit in `imageFlags`
+4. Zeroes out the key vault area
+5. Repairs the SHA1 header hash using `IncrementalHash` so the Xbox 360 console accepts the modified executable
+
+## CI/CD & Security
+
+GitHub Actions builds macOS arm64 and x64 artifacts on every push and PR to `main`:
+
+- **Vulnerability scanning** — `dotnet list package --vulnerable` fails the build if any package has a known vulnerability
+- **SBOM generation** — `dotnet list package --include-transitive` produces a software bill of materials
+- **Dependabot** — keeps NuGet packages up to date weekly
+- **Supply chain audit** — third-party risk assessment on all dependencies
+
+## Credits
+
+BadBuilder was originally created for Windows by **Pdawg-bytes** as the [BadBuilder](https://github.com/Pdawg-bytes/BadBuilder) project.
+
+This fork (`bad-builder-mac`) extends it with a macOS port and .NET 10 rewrite by:
+- **garvvin** — macOS native disk detection (statfs P/Invoke), diskutil formatting, cross-platform XEX patching, CI/CD pipeline, supply chain audit
+
+Exploit and homebrew tooling:
+- **Grimdoomer** — [BadUpdate](https://github.com/grimdoomer/Xbox360BadUpdate)
+- **InvoxiPlayGames** — [FreeMyXe](https://github.com/FreeMyXe/FreeMyXe)
+- **Byrom90** — [XeUnshackle](https://github.com/Byrom90/XeUnshackle)
+- **Swizzy** — [Simple 360 NAND Flasher](https://github.com/Swizzy/XDK_Projects)
+- **Team XeDEV** — XeXMenu
