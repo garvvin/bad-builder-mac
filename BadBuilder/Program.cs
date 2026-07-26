@@ -6,6 +6,7 @@ using Spectre.Console;
 using BadBuilder.Models;
 using BadBuilder.Helpers;
 using BadBuilder.Utilities;
+using System.Runtime.InteropServices;
 
 using static BadBuilder.Utilities.Constants;
 
@@ -20,12 +21,11 @@ namespace BadBuilder
         static readonly Style GreenStyle = new(new Color(118, 185, 0));
         static readonly Style GrayStyle = new(new Color(132, 133, 137));
 
-        static string XexToolPath = string.Empty;
         static string TargetDriveLetter = string.Empty;
 
         static ActionQueue actionQueue = new();
 
-        static DiskInfo targetDisk = new("Z:\\", "Fixed", 0, "", 0, int.MaxValue); // Default values just incase.
+        static DiskInfo targetDisk = new("/mnt/usb", "Fixed", 0, "", 0, int.MaxValue);
 
         static void Main(string[] args)
         {
@@ -40,7 +40,7 @@ namespace BadBuilder
 
                 List<DiskInfo> disks = DiskHelper.GetDisks();
                 string selectedDisk = PromptDiskSelection(disks);
-                TargetDriveLetter = selectedDisk[..3];
+                TargetDriveLetter = ExtractRootPath(selectedDisk);
 
                 int diskIndex = disks.FindIndex(disk => $"{disk.DriveLetter} ({disk.SizeFormatted}) - {disk.Type}" == selectedDisk);
                 targetDisk = disks[diskIndex];
@@ -48,7 +48,36 @@ namespace BadBuilder
                 bool confirmation = PromptFormatConfirmation(selectedDisk);
                 if (confirmation)
                 {
-                    if (!FormatDisk(targetDisk)) continue; 
+                    bool formatOk = FormatDisk(targetDisk);
+                    if (!formatOk)
+                    {
+                        bool manualFormatDone = AnsiConsole.Prompt(
+                            new TextPrompt<bool>("Have you already manually formatted this drive as FAT32 (label: BADUPDATE)?")
+                                .AddChoice(true)
+                                .AddChoice(false)
+                                .DefaultValue(false)
+                                .ChoicesStyle(GreenStyle)
+                                .DefaultValueStyle(OrangeStyle)
+                                .WithConverter(choice => choice ? "y" : "n")
+                        );
+                        if (!manualFormatDone) continue;
+
+                        try
+                        {
+                            string driveFormat = new DriveInfo(targetDisk.DriveLetter).DriveFormat;
+                            string volumeLabel = new DriveInfo(targetDisk.DriveLetter).VolumeLabel;
+                            if (!driveFormat.Equals("FAT32", StringComparison.OrdinalIgnoreCase) || !volumeLabel.Equals("BADUPDATE", StringComparison.OrdinalIgnoreCase))
+                            {
+                                Console.WriteLine($"\n[!] Drive verification failed: expected FAT32/BADUPDATE, got {driveFormat}/{volumeLabel}. Please format the drive correctly.");
+                                continue;
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            Console.WriteLine("\n[!] Could not verify the drive. Ensure it's mounted and formatted as FAT32 with label BADUPDATE.");
+                            continue;
+                        }
+                    }
                     break;
                 }
             }
@@ -70,7 +99,7 @@ namespace BadBuilder
             AnsiConsole.MarkupLine("[#76B900]{0}[/] Copying requried files and folders.", Markup.Escape("[*]"));
             foreach (var folder in Directory.GetDirectories($@"{EXTRACTED_DIR}"))
             {
-                switch (folder.Split("\\").Last())
+                switch (Path.GetFileName(folder))
                 {
                     case "XeXmenu":
                         EnqueueMirrorDirectory(
@@ -115,13 +144,12 @@ namespace BadBuilder
                         break;
 
                     case "BadUpdate Tools":
-                        XexToolPath = Path.Combine(folder, "XePatcher", "XexTool.exe");
                         break;
 
                     case "Rock Band Blitz":
                         EnqueueMirrorDirectory(
-                            Path.Combine(folder, $"{ContentFolder}5841122D\\000D0000"),
-                            Path.Combine(TargetDriveLetter, $"{ContentFolder}5841122D\\000D0000"),
+                            Path.Combine(folder, $"{ContentFolder}5841122D/000D0000"),
+                            Path.Combine(TargetDriveLetter, $"{ContentFolder}5841122D/000D0000"),
                             8
                         );
                         break;
@@ -129,7 +157,7 @@ namespace BadBuilder
                     case "Simple 360 NAND Flasher":
                         actionQueue.EnqueueAction(async () =>
                         {
-                            await PatchHelper.PatchXexAsync(Path.Combine(folder, "Simple 360 NAND Flasher", "Default.xex"), XexToolPath);
+                            await PatchHelper.PatchXexAsync(Path.Combine(folder, "Simple 360 NAND Flasher", "Default.xex"));
                             await FileSystemHelper.MirrorDirectoryAsync(Path.Combine(folder, "Simple 360 NAND Flasher"), Path.Combine(TargetDriveLetter, "Apps", "Simple 360 NAND Flasher"));
                         }, 6);
                         break;
@@ -139,8 +167,16 @@ namespace BadBuilder
             }
             actionQueue.ExecuteActionsAsync().Wait();
 
-            File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), $"-  Disk formatted using {(targetDisk.TotalSize < 31 * GB ? "Windows \"format.com\"" : "BadBuilder Large FAT32 formatter")}\n");
-            File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), $"-  Disk total size: {targetDisk.TotalSize} bytes\n");
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), $"-  Disk formatted using {(targetDisk.TotalSize < 31 * GB ? "Windows \"format.com\"" : "BadBuilder Large FAT32 formatter")}\n");
+                File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), $"-  Disk total size: {targetDisk.TotalSize} bytes\n");
+            }
+            else
+            {
+                File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), "-  Disk formatted manually by user (non-Windows platform)\n");
+                File.AppendAllText(Path.Combine(TargetDriveLetter, "info.txt"), $"-  Disk total size: {targetDisk.TotalSize} bytes\n");
+            }
 
             ClearConsole();
             if (!PromptAddHomebrew())
@@ -163,7 +199,7 @@ namespace BadBuilder
                     await Task.WhenAll(homebrewApps.Select(async item =>
                     {
                         await FileSystemHelper.MirrorDirectoryAsync(item.folder, Path.Combine(TargetDriveLetter, "Apps", item.name));
-                        await PatchHelper.PatchXexAsync(item.entryPoint, XexToolPath);
+                        await PatchHelper.PatchXexAsync(item.entryPoint);
                     }));
                 }).Wait();
 
@@ -214,6 +250,7 @@ namespace BadBuilder
             [#76B900]───────────────────────────────────────────────────────────────────────v0.31[/]
             ───────────────────────Xbox 360 [#FF7200]BadUpdate[/] USB Builder───────────────────────
                                         [#848589]Created by Pdawg[/]
+                                    [#848589]Ported to macOS by garvvin[/]
             [#76B900]────────────────────────────────────────────────────────────────────────────[/]
 
         """);
@@ -232,6 +269,12 @@ namespace BadBuilder
             AnsiConsole.Clear();
             ShowWelcomeMessage();
             Console.WriteLine();
+        }
+
+        static string ExtractRootPath(string displayString)
+        {
+            int parenIndex = displayString.LastIndexOf(" (");
+            return parenIndex > 0 ? displayString.Substring(0, parenIndex) : displayString;
         }
     }
 }
