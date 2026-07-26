@@ -3,6 +3,7 @@ using BadBuilder.Platforms;
 #if WINDOWS
 using BadBuilder.Formatter;
 #endif
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace BadBuilder.Helpers
@@ -17,13 +18,59 @@ namespace BadBuilder.Helpers
 
         internal static string FormatDisk(DiskInfo disk)
         {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return "\u001b[38;2;255;114;0m[-]\u001b[0m Formatting is currently only supported on Windows. Please format your drive manually and try again.";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                return FormatDiskMacOS(disk);
 
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                return FormatDiskWindows(disk);
+
+            return "Formatting is not supported on this platform. Please format your drive manually.";
+        }
+
+        private static string FormatDiskMacOS(DiskInfo disk)
+        {
+            if (string.IsNullOrEmpty(disk.DeviceIdentifier))
+                return "\u001b[38;2;255;114;0m[-]\u001b[0m Could not determine the device identifier for formatting. Please format manually.";
+
+            try
+            {
+                using var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "/usr/sbin/diskutil",
+                        Arguments = $"eraseDisk FAT32 BADUPDATE MBRFormat {disk.DeviceIdentifier}",
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                process.WaitForExit(120000);
+
+                if (process.ExitCode == 0)
+                    return string.Empty;
+
+                string error = process.StandardError.ReadToEnd().Trim();
+                if (string.IsNullOrEmpty(error))
+                    error = process.StandardOutput.ReadToEnd().Trim();
+
+                return $"\u001b[38;2;255;114;0m[-]\u001b[0m Format failed: {error}";
+            }
+            catch (Exception ex)
+            {
+                return $"\u001b[38;2;255;114;0m[-]\u001b[0m Format error: {ex.Message}";
+            }
+        }
+
+        private static string FormatDiskWindows(DiskInfo disk)
+        {
 #if WINDOWS
             return DiskFormatter.FormatVolume(disk.MountPoint[0], disk.TotalSize);
 #else
-            return ""; // never reached — already returned above
+            return ""; // never reached
 #endif
         }
 

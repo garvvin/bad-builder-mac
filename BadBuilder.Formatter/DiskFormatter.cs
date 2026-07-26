@@ -1,17 +1,21 @@
-﻿#pragma warning disable CA1416
-using System.Text;
+﻿using System.Text;
 using System.Diagnostics;
-using Windows.Win32.System.Ioctl;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
-using Windows.Win32.Storage.FileSystem;
 
-using static Windows.Win32.PInvoke;
 using static BadBuilder.Formatter.Constants;
 using static BadBuilder.Formatter.Utilities;
 
+#if WINDOWS
+using Windows.Win32.System.Ioctl;
+using Windows.Win32.Storage.FileSystem;
+using static Windows.Win32.PInvoke;
+#pragma warning disable CA1416
+#endif
+
 namespace BadBuilder.Formatter
 {
+#if WINDOWS
     public static class DiskFormatter
     {
         public static unsafe string FormatVolume(char driveLetter, long diskSize)
@@ -244,4 +248,13 @@ namespace BadBuilder.Formatter
             return "";
         }
     }
+#else
+    public static class DiskFormatter
+    {
+        public static string FormatVolume(char driveLetter, long diskSize)
+        {
+            return "Formatting is only supported on Windows.";
+        }
+    }
+#endif
 }

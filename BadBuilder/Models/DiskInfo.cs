@@ -6,6 +6,7 @@
         internal string Type { get; init; }
         internal string SizeFormatted { get; init; }
         internal long TotalSize { get; init; }
+        internal string? DeviceIdentifier { get; init; }
 
         internal DiskInfo(string mountPoint, string type, long totalSize)
         {

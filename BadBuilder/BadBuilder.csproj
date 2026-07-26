@@ -6,7 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PublishSingleFile>true</PublishSingleFile>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(DefineConstants);WINDOWS</DefineConstants>
+    <AllowUnsafeBlocks Condition="$([MSBuild]::IsOSPlatform('Windows'))">true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,11 +18,10 @@
     <PackageReference Include="Octokit" Version="14.0.0" />
     <PackageReference Include="SharpCompress" Version="0.39.0" />
     <PackageReference Include="Spectre.Console" Version="0.49.1" />
-    <PackageReference Include="System.Management" Version="9.0.3" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BadBuilder.Formatter\BadBuilder.Formatter.csproj" />
+    <ProjectReference Include="..\BadBuilder.Formatter\BadBuilder.Formatter.csproj" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
   </ItemGroup>
 
 </Project>

@@ -108,8 +108,8 @@ namespace BadBuilder
 
             ClearConsole();
 
-            AnsiConsole.MarkupLine($"[#76B900]Added:[/] {folderPath.Split('\\').Last()} -> [#ffac4d]{Path.GetFileName(entryPoint)}[/]\n");
-            return (folderPath.Split('\\').Last(), folderPath, Path.Combine(folderPath, entryPoint)); 
+            AnsiConsole.MarkupLine($"[#76B900]Added:[/] {Path.GetFileName(folderPath)} -> [#ffac4d]{Path.GetFileName(entryPoint)}[/]\n");
+            return (Path.GetFileName(folderPath), folderPath, Path.Combine(folderPath, entryPoint)); 
         }
 
 
@@ -154,7 +154,7 @@ namespace BadBuilder
             var selectedApp = apps.First(app => $"{Path.GetFileName(app.folder)}" == appToRemove);
             apps.Remove(selectedApp);
 
-            AnsiConsole.MarkupLine($"[#ffac4d]Removed:[/] {selectedApp.folder.Split('\\').Last()}\n");
+            AnsiConsole.MarkupLine($"[#ffac4d]Removed:[/] {Path.GetFileName(selectedApp.folder)}\n");
         }
     }
 }

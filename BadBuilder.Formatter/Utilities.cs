@@ -1,8 +1,12 @@
-﻿using Windows.Win32.Foundation;
+﻿#if WINDOWS
+using Windows.Win32.Foundation;
 using Windows.Win32.System.Memory;
+#endif
 using System.Runtime.InteropServices;
 
+#if WINDOWS
 using static Windows.Win32.PInvoke;
+#endif
 using static BadBuilder.Formatter.Constants;
 
 namespace BadBuilder.Formatter
@@ -63,6 +67,7 @@ namespace BadBuilder.Formatter
         };
 
 
+#if WINDOWS
         internal static unsafe void SeekTo(SafeHandle hDevice, uint sector, uint bytesPerSector)
         {
             long offset = sector * bytesPerSector;
@@ -110,5 +115,6 @@ namespace BadBuilder.Formatter
                 VirtualFree(pZeroSector, bytesPerSector * burstSize, VIRTUAL_FREE_TYPE.MEM_RELEASE);
             }
         }
+#endif
     }
 }

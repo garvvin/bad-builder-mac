@@ -23,6 +23,8 @@ namespace BadBuilder
 
         static string TargetMountPoint = string.Empty;
 
+        static bool formatSucceeded = false;
+
         static ActionQueue actionQueue = new();
 
         static DiskInfo targetDisk = new("/mnt/usb", "Fixed", 0);
@@ -49,6 +51,7 @@ namespace BadBuilder
                 if (confirmation)
                 {
                     bool formatOk = FormatDisk(targetDisk);
+                    formatSucceeded = formatOk;
                     if (!formatOk)
                     {
                         bool manualFormatDone = AnsiConsole.Prompt(
@@ -160,6 +163,13 @@ namespace BadBuilder
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 File.AppendAllText(Path.Combine(TargetMountPoint, "info.txt"), $"-  Disk formatted using {(targetDisk.TotalSize < 31 * GB ? "Windows \"format.com\"" : "BadBuilder Large FAT32 formatter")}\n");
+                File.AppendAllText(Path.Combine(TargetMountPoint, "info.txt"), $"-  Disk total size: {targetDisk.TotalSize} bytes\n");
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                File.AppendAllText(Path.Combine(TargetMountPoint, "info.txt"), formatSucceeded
+                    ? "-  Disk formatted using macOS diskutil (FAT32, MBR)\n"
+                    : "-  Disk formatted manually by user (macOS)\n");
                 File.AppendAllText(Path.Combine(TargetMountPoint, "info.txt"), $"-  Disk total size: {targetDisk.TotalSize} bytes\n");
             }
             else
