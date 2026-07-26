@@ -7,7 +7,7 @@ BadBuilder is a tool for creating a BadUpdate USB drive for the Xbox 360. It aut
 - Ensures compatibility with the Xbox 360.
 
 > [!NOTE]  
-> Currently, the formatting feature is **Windows-only**. If you compile BadBuilder for another OS, it'll prompt you to manually format your target disk.
+> Currently, the formatting feature is **Windows-only**. If you compile BadBuilder for another OS, it'll prompt you to manually format your target disk. **__Please format the drive BEFORE using BadBuilder, via Rufus, etc.__**
 
 ### Automatic File Downloading
 - Detects and downloads the latest required files automatically.
